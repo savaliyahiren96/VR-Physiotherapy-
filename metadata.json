@@ -1,0 +1,6 @@
+{
+  "name": "VR AI Physiotherapy",
+  "description": "3D anatomy and biomechanics lab for BPT students and physiotherapy teachers with WebXR VR, biomechanical torque simulations, muscle involvement, accessory glides, and multilingual AI tutor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
