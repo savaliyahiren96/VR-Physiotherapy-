@@ -17,6 +17,7 @@ import { GoniometryTab } from './components/tabs/GoniometryTab';
 import { ClosedChainTab } from './components/tabs/ClosedChainTab';
 import { QuizTab } from './components/tabs/QuizTab';
 import { AITutorTab } from './components/tabs/AITutorTab';
+import { MotionAnalysisTab } from './components/tabs/MotionAnalysisTab';
 
 type TabKey =
   | 'load'
@@ -27,7 +28,8 @@ type TabKey =
   | 'goniometry'
   | 'closed_chain'
   | 'quiz'
-  | 'ai_tutor';
+  | 'ai_tutor'
+  | 'motion_analysis';
 
 export default function App() {
   // Navigation & Joint State
@@ -138,14 +140,14 @@ export default function App() {
       <header className="bg-[#0b132b] border-b border-[#20b2aa]/40 px-3 py-2 sm:px-6 sm:py-2.5 flex items-center justify-between shadow-md select-none shrink-0">
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="w-8 h-8 rounded bg-gradient-to-br from-[#20b2aa] to-[#d4af37] flex items-center justify-center font-bold text-[#0b132b] text-base shadow">
-            VR
+            CA
           </div>
           <div>
             <h1 className="text-base sm:text-lg font-bold text-[#fbbf24] tracking-wide leading-tight">
-              VR AI Physiotherapy
+              ClinicaAI <span className="text-xs sm:text-sm font-normal text-teal-300">| Movement Analysis & Biomechanics</span>
             </h1>
             <p className="text-[10px] sm:text-xs text-slate-300">
-              3D Anatomy & Biomechanics Lab for BPT Students & Faculty
+              AI-Powered Camera Assessment, Skeletal Tracking & Clinical Prefill
             </p>
           </div>
         </div>
@@ -202,6 +204,14 @@ export default function App() {
             </button>
           );
         })}
+
+        {/* Quick Launch Button to Video/Photo Motion Lab */}
+        <button
+          onClick={() => setActiveTab('motion_analysis')}
+          className="ml-auto text-xs px-3 py-1 rounded-full whitespace-nowrap bg-gradient-to-r from-[#20b2aa] to-[#0d9488] hover:from-[#14b8a6] hover:to-[#0f766e] text-[#0b132b] font-bold font-sans border border-[#fbbf24] shadow flex items-center gap-1 cursor-pointer shrink-0"
+        >
+          <span>📷 Video/Photo Marker Lab</span>
+        </button>
       </div>
 
       {/* Main Responsive Layout: Desktop 3D Left / Tabs Right, Phone 3D Top / Tabs Bottom */}
@@ -265,6 +275,7 @@ export default function App() {
           {/* Tabs Navigation Bar */}
           <div className="bg-[#0b132b] border-b border-slate-800 px-2 py-1.5 flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0">
             {[
+              { key: 'motion_analysis', label: '📷 Video & Marker Lab' },
               { key: 'load', label: 'Load & Torque' },
               { key: 'muscles', label: 'Muscles & Sharing' },
               { key: 'joint', label: 'Joint Info' },
@@ -367,6 +378,16 @@ export default function App() {
               <QuizTab
                 onSelectMuscle={setSelectedMuscleId}
                 setShowLandmarks={setShowLandmarks}
+              />
+            )}
+
+            {activeTab === 'motion_analysis' && (
+              <MotionAnalysisTab
+                joint={currentJoint}
+                movement={currentMovement}
+                currentAngleDeg={angleDeg}
+                onApplyAngleToModel={setAngleDeg}
+                biomechanics={biomechanics}
               />
             )}
 
