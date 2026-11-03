@@ -18,6 +18,10 @@ import { ClosedChainTab } from './components/tabs/ClosedChainTab';
 import { QuizTab } from './components/tabs/QuizTab';
 import { AITutorTab } from './components/tabs/AITutorTab';
 import { MotionAnalysisTab } from './components/tabs/MotionAnalysisTab';
+import { ExerciseLibraryTab } from './components/tabs/ExerciseLibraryTab';
+import { ComparisonTab } from './components/tabs/ComparisonTab';
+import { SAMPLE_PATIENTS } from './data/samplePatients';
+import { playTargetReachedChime } from './utils/audioFeedback';
 
 type TabKey =
   | 'load'
@@ -27,6 +31,8 @@ type TabKey =
   | 'weakness'
   | 'goniometry'
   | 'closed_chain'
+  | 'exercises'
+  | 'comparison'
   | 'quiz'
   | 'ai_tutor'
   | 'motion_analysis';
@@ -55,10 +61,26 @@ export default function App() {
   // Weakness Simulation Factors (muscleId -> 0 to 1 strength)
   const [muscleStrengthFactors, setMuscleStrengthFactors] = useState<Record<string, number>>({});
 
+  // Patient Context & Acoustic Biofeedback
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('PT-1042');
+  const [audioBiofeedback, setAudioBiofeedback] = useState<boolean>(true);
+  const activePatient = SAMPLE_PATIENTS.find((p) => p.id === selectedPatientId) || SAMPLE_PATIENTS[0];
+
   // Active joint and movement lookup
   const currentJoint = JOINTS_DATA.find((j) => j.id === currentJointId) || JOINTS_DATA[1];
   const currentMovement =
     currentJoint.movements.find((m) => m.id === currentMovementId) || currentJoint.movements[0];
+
+  // Acoustic chime when reaching key milestone angles
+  const prevAngleRef = useRef<number>(angleDeg);
+  useEffect(() => {
+    if (audioBiofeedback && Math.abs(angleDeg - prevAngleRef.current) >= 1) {
+      if (angleDeg === currentMovement.defaultAngle || angleDeg === currentMovement.maxAngle) {
+        playTargetReachedChime();
+      }
+    }
+    prevAngleRef.current = angleDeg;
+  }, [angleDeg, audioBiofeedback, currentMovement.defaultAngle, currentMovement.maxAngle]);
 
   // Set default angle and position when movement changes
   const handleSelectMovement = (mId: MovementId) => {
@@ -173,6 +195,41 @@ export default function App() {
         </div>
       </header>
 
+      {/* Patient Profile & Clinical Context Bar */}
+      <div className="bg-[#0c1836] border-b border-teal-500/30 px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 text-xs font-sans shrink-0">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <span className="text-slate-400 font-semibold shrink-0">Patient:</span>
+          <select
+            value={selectedPatientId}
+            onChange={(e) => {
+              const pId = e.target.value;
+              setSelectedPatientId(pId);
+              const p = SAMPLE_PATIENTS.find((item) => item.id === pId);
+              if (p && p.involvedJoint !== currentJointId) {
+                handleSelectJoint(p.involvedJoint);
+              }
+            }}
+            className="bg-[#14234b] text-[#fbbf24] font-bold border border-teal-500/50 rounded px-2 py-0.5 text-xs cursor-pointer focus:outline-none focus:border-amber-400"
+          >
+            {SAMPLE_PATIENTS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.id}) - {p.affectedSide} {p.involvedJoint.toUpperCase()}
+              </option>
+            ))}
+          </select>
+          <span className="text-[11px] text-slate-300 hidden sm:inline">
+            | <strong className="text-teal-300">{activePatient.diagnosis}</strong>
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 text-[11px]">
+          <span className="text-slate-400 hidden md:inline">Goal: <span className="text-amber-200">{activePatient.goalROM}</span></span>
+          <span className="px-2 py-0.5 rounded bg-teal-900/60 border border-teal-400/40 text-teal-300 font-mono text-[10px]">
+            {activePatient.status}
+          </span>
+        </div>
+      </div>
+
       {/* Mandatory Honesty & Academic Disclaimer Banner */}
       <div className="bg-[#08152e] border-b border-amber-600/40 px-3 py-1.5 text-[10px] sm:text-[11px] text-amber-200/90 flex flex-wrap items-center justify-between gap-1 select-none shrink-0">
         <div className="flex items-center gap-1.5">
@@ -242,17 +299,35 @@ export default function App() {
                 Joint Angle: <strong className="text-[#fbbf24] text-sm">{angleDeg}°</strong>
                 <span className="text-slate-400 text-[11px] ml-1">({currentMovement.normalRangeText})</span>
               </span>
-              <button
-                type="button"
-                onClick={() => setIsPlayingRange(!isPlayingRange)}
-                className={`text-xs px-3 py-1 rounded font-bold border transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  isPlayingRange
-                    ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-300'
-                    : 'bg-[#20b2aa] hover:bg-[#14b8a6] text-[#0b132b] border-[#fbbf24]'
-                }`}
-              >
-                <span>{isPlayingRange ? '⏸ Pause Range' : '▶ Move Through Range'}</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  title="Toggle Acoustic Biofeedback Chime on reaching target ROM"
+                  onClick={() => {
+                    const next = !audioBiofeedback;
+                    setAudioBiofeedback(next);
+                    if (next) playTargetReachedChime();
+                  }}
+                  className={`text-[11px] px-2 py-1 rounded font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
+                    audioBiofeedback
+                      ? 'bg-teal-900/70 text-teal-300 border-teal-400'
+                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                  }`}
+                >
+                  <span>{audioBiofeedback ? '🔔 Biofeedback ON' : '🔕 Biofeedback OFF'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPlayingRange(!isPlayingRange)}
+                  className={`text-xs px-3 py-1 rounded font-bold border transition-colors cursor-pointer flex items-center gap-1.5 ${
+                    isPlayingRange
+                      ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-300'
+                      : 'bg-[#20b2aa] hover:bg-[#14b8a6] text-[#0b132b] border-[#fbbf24]'
+                  }`}
+                >
+                  <span>{isPlayingRange ? '⏸ Pause Range' : '▶ Move Through Range'}</span>
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -283,6 +358,8 @@ export default function App() {
               { key: 'weakness', label: 'Palsy Simulator' },
               { key: 'goniometry', label: 'Goniometry & MMT' },
               { key: 'closed_chain', label: 'Closed-Chain' },
+              { key: 'exercises', label: 'Rehab & HEP Library' },
+              { key: 'comparison', label: 'Progress Comparison' },
               { key: 'quiz', label: 'Clinical Quiz' },
               { key: 'ai_tutor', label: 'AI Clinical Tutor' },
             ].map((tab) => {
@@ -373,6 +450,15 @@ export default function App() {
             )}
 
             {activeTab === 'closed_chain' && <ClosedChainTab />}
+
+            {activeTab === 'exercises' && (
+              <ExerciseLibraryTab
+                currentJointId={currentJoint.id}
+                patientName={activePatient.name}
+              />
+            )}
+
+            {activeTab === 'comparison' && <ComparisonTab />}
 
             {activeTab === 'quiz' && (
               <QuizTab
