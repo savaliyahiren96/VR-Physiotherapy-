@@ -2,7 +2,7 @@
  * Biomechanical & Anatomical Type Definitions for VR AI Physiotherapy
  */
 
-export type JointId = 'shoulder' | 'elbow' | 'hip' | 'knee' | 'ankle';
+export type JointId = 'shoulder' | 'elbow' | 'hip' | 'knee' | 'ankle' | 'spine';
 
 export type MovementId =
   // Shoulder
@@ -31,7 +31,12 @@ export type MovementId =
   | 'ankle_dorsiflexion'
   | 'ankle_plantarflexion'
   | 'foot_inversion'
-  | 'foot_eversion';
+  | 'foot_eversion'
+  // Spine & Trunk
+  | 'spine_flexion'
+  | 'spine_extension'
+  | 'spine_lateral_flexion'
+  | 'spine_axial_rotation';
 
 export type PatientPosition = 'standing' | 'sitting' | 'supine' | 'prone' | 'side_lying';
 
@@ -150,4 +155,28 @@ export interface NervePalsyPreset {
   name: string;
   description: string;
   weakenedMuscles: Record<string, number>; // muscleId -> strength ratio (0 to 1)
+}
+
+export type SpinePathologyType =
+  | 'healthy'
+  | 'pivd_herniation'
+  | 'spondylolisthesis'
+  | 'spinal_stenosis'
+  | 'degenerative_disc'
+  | 'scoliosis';
+
+export interface SpinePathologyInfo {
+  id: SpinePathologyType;
+  name: string;
+  commonLevel: string;
+  clinicalSignificance: string;
+  biomechanicalMechanism: string;
+  aggravatingPosture: string;
+  relievingPosture: string;
+  specialTests: string[];
+  intradiscalPressureMultiplier: number;
+  compressiveDeficitPercent: number;
+  shearRisk: 'Low' | 'Moderate' | 'Severe' | 'Critical';
+  nerveRootInvolved: string;
+  directionPreference: 'Extension' | 'Flexion' | 'Neutral/Lateral Shift' | 'Unloaded';
 }

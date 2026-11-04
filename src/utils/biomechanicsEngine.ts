@@ -48,6 +48,12 @@ export const WINTER_SEGMENT_DATA: Record<
     segmentLengthM: 0.22,
     loadLeverArmM: 0.18,
   },
+  spine: {
+    massFraction: 0.678, // Head, Arms & Trunk (HAT): ~67.8% of body mass superior to L4-L5
+    comFraction: 0.48, // Distance from L4/L5 to thoracic/cranial COM (~0.26 m)
+    segmentLengthM: 0.55,
+    loadLeverArmM: 0.45, // Distance to hand load held anteriorly
+  },
 };
 
 const GRAVITY_G = 9.80665; // m/s^2
@@ -231,6 +237,24 @@ export function getGravityFactor(
       return { factor: 0.9, classification: 'Against Gravity' };
     } else if (position === 'supine') {
       return { factor: 0.3, classification: 'Against Gravity' };
+    }
+  }
+
+  // Spine Flexion and Extension:
+  if (jointId === 'spine') {
+    if (movementId === 'spine_flexion') {
+      if (position === 'standing' || position === 'sitting') {
+        // As trunk bends forward from 0° (upright) to 60°, gravitational flexor moment increases with sin(rad)
+        const factor = Math.sin(Math.max(0.1, rad));
+        return { factor: Math.max(0.12, factor), classification: 'Against Gravity' };
+      }
+    } else if (movementId === 'spine_extension') {
+      if (position === 'prone') {
+        const factor = Math.cos(Math.max(0.1, rad));
+        return { factor: Math.max(0.2, factor), classification: 'Against Gravity' };
+      } else {
+        return { factor: 0.35, classification: 'Against Gravity' };
+      }
     }
   }
 

@@ -5,6 +5,7 @@ import {
   MovementId,
   PatientPosition,
   ContractionMode,
+  SpinePathologyType,
 } from './types/biomechanics';
 import { calculateBiomechanics } from './utils/biomechanicsEngine';
 import { VRScene } from './components/3d/VRScene';
@@ -20,6 +21,7 @@ import { AITutorTab } from './components/tabs/AITutorTab';
 import { MotionAnalysisTab } from './components/tabs/MotionAnalysisTab';
 import { ExerciseLibraryTab } from './components/tabs/ExerciseLibraryTab';
 import { ComparisonTab } from './components/tabs/ComparisonTab';
+import { SpinePathologyTab } from './components/tabs/SpinePathologyTab';
 import { SAMPLE_PATIENTS } from './data/samplePatients';
 import { playTargetReachedChime } from './utils/audioFeedback';
 
@@ -33,6 +35,7 @@ type TabKey =
   | 'closed_chain'
   | 'exercises'
   | 'comparison'
+  | 'spine_pathology'
   | 'quiz'
   | 'ai_tutor'
   | 'motion_analysis';
@@ -61,8 +64,11 @@ export default function App() {
   // Weakness Simulation Factors (muscleId -> 0 to 1 strength)
   const [muscleStrengthFactors, setMuscleStrengthFactors] = useState<Record<string, number>>({});
 
+  // Spine Pathology Visualization State (PIVD, Spondylolisthesis, Stenosis, DDD, Scoliosis)
+  const [spinePathology, setSpinePathology] = useState<SpinePathologyType>('pivd_herniation');
+
   // Patient Context & Acoustic Biofeedback
-  const [selectedPatientId, setSelectedPatientId] = useState<string>('PT-1042');
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('PT-1046'); // Default to Vikram Malhotra (L4-L5 PIVD)
   const [audioBiofeedback, setAudioBiofeedback] = useState<boolean>(true);
   const activePatient = SAMPLE_PATIENTS.find((p) => p.id === selectedPatientId) || SAMPLE_PATIENTS[0];
 
@@ -106,6 +112,9 @@ export default function App() {
       setSelectedMuscleId(null);
       setActiveAccessoryGlideVector(null);
       setActiveGlideId(null);
+      if (jId === 'spine') {
+        setActiveTab('spine_pathology');
+      }
     }
   };
 
@@ -262,13 +271,23 @@ export default function App() {
           );
         })}
 
-        {/* Quick Launch Button to Video/Photo Motion Lab */}
-        <button
-          onClick={() => setActiveTab('motion_analysis')}
-          className="ml-auto text-xs px-3 py-1 rounded-full whitespace-nowrap bg-gradient-to-r from-[#20b2aa] to-[#0d9488] hover:from-[#14b8a6] hover:to-[#0f766e] text-[#0b132b] font-bold font-sans border border-[#fbbf24] shadow flex items-center gap-1 cursor-pointer shrink-0"
-        >
-          <span>📷 Video/Photo Marker Lab</span>
-        </button>
+        {/* Quick Launch Button to Video/Photo Motion Lab and Spine Lab */}
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          {currentJoint.id === 'spine' && (
+            <button
+              onClick={() => setActiveTab('spine_pathology')}
+              className="text-xs px-2.5 py-1 rounded-full whitespace-nowrap bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold font-sans border border-amber-300 shadow flex items-center gap-1 cursor-pointer"
+            >
+              <span>🦴 Spine Pathology Lab</span>
+            </button>
+          )}
+          <button
+            onClick={() => setActiveTab('motion_analysis')}
+            className="text-xs px-3 py-1 rounded-full whitespace-nowrap bg-gradient-to-r from-[#20b2aa] to-[#0d9488] hover:from-[#14b8a6] hover:to-[#0f766e] text-[#0b132b] font-bold font-sans border border-[#fbbf24] shadow flex items-center gap-1 cursor-pointer shrink-0"
+          >
+            <span>📷 Video/Photo Marker Lab</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Responsive Layout: Desktop 3D Left / Tabs Right, Phone 3D Top / Tabs Bottom */}
@@ -289,11 +308,38 @@ export default function App() {
               showLandmarks={showLandmarks}
               activeAccessoryGlideVector={activeAccessoryGlideVector}
               netTorqueNm={biomechanics.netTorqueNm}
+              spinePathology={spinePathology}
             />
           </div>
 
           {/* Range Slider & Move Through Range Controls Dock */}
           <div className="bg-[#0b132b]/95 border-t border-slate-800 p-2.5 sm:px-4 flex flex-col gap-1.5 shrink-0 z-10">
+            {/* Quick 3D Spine Pathology Selector when on Spine */}
+            {currentJoint.id === 'spine' && (
+              <div className="bg-[#071126] p-1.5 rounded border border-teal-500/40 flex items-center justify-between gap-1.5 text-xs font-sans">
+                <span className="text-slate-300 font-semibold shrink-0">3D Pathology State:</span>
+                <select
+                  value={spinePathology}
+                  onChange={(e) => setSpinePathology(e.target.value as SpinePathologyType)}
+                  className="bg-[#122247] text-[#fbbf24] font-bold border border-teal-500/50 rounded px-2 py-0.5 text-xs cursor-pointer flex-1 max-w-[280px]"
+                >
+                  <option value="healthy">Normal Functional Segment (L4–L5)</option>
+                  <option value="pivd_herniation">💥 PIVD Disc Herniation (Sciatica)</option>
+                  <option value="spondylolisthesis">⚠️ Spondylolisthesis (Pars Defect)</option>
+                  <option value="spinal_stenosis">🛑 Lumbar Spinal Stenosis</option>
+                  <option value="degenerative_disc">🦴 Degenerative Disc Disease (DDD)</option>
+                  <option value="scoliosis">📐 Lumbar Scoliosis Deformity</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('spine_pathology')}
+                  className="text-[10px] px-2 py-0.5 rounded bg-teal-900 text-teal-200 border border-teal-400 font-bold hover:bg-teal-800 cursor-pointer shrink-0"
+                >
+                  Pathology Lab ➔
+                </button>
+              </div>
+            )}
+
             <div className="flex items-center justify-between text-xs font-sans">
               <span className="text-slate-300">
                 Joint Angle: <strong className="text-[#fbbf24] text-sm">{angleDeg}°</strong>
@@ -350,6 +396,7 @@ export default function App() {
           {/* Tabs Navigation Bar */}
           <div className="bg-[#0b132b] border-b border-slate-800 px-2 py-1.5 flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0">
             {[
+              { key: 'spine_pathology', label: '🦴 Spine Pathologies' },
               { key: 'motion_analysis', label: '📷 Video & Marker Lab' },
               { key: 'load', label: 'Load & Torque' },
               { key: 'muscles', label: 'Muscles & Sharing' },
@@ -455,6 +502,16 @@ export default function App() {
               <ExerciseLibraryTab
                 currentJointId={currentJoint.id}
                 patientName={activePatient.name}
+              />
+            )}
+
+            {activeTab === 'spine_pathology' && (
+              <SpinePathologyTab
+                currentPathology={spinePathology}
+                onSelectPathology={setSpinePathology}
+                angleDeg={angleDeg}
+                bodyMassKg={bodyMassKg}
+                loadKg={loadKg}
               />
             )}
 

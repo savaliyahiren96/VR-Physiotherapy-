@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { JointId } from '../../types/biomechanics';
+import { JointId, SpinePathologyType } from '../../types/biomechanics';
 
 /**
  * Procedural Anatomical Bone Generator
@@ -45,7 +45,10 @@ export const landmarkMat = new THREE.MeshStandardMaterial({
   emissiveIntensity: 0.4,
 });
 
-export function createProceduralJoint(jointId: JointId): BoneRig {
+export function createProceduralJoint(
+  jointId: JointId,
+  spinePathology: SpinePathologyType = 'healthy'
+): BoneRig {
   const fixedGroup = new THREE.Group();
   const movingGroup = new THREE.Group();
   const jointAnchor = new THREE.Group();
@@ -68,6 +71,9 @@ export function createProceduralJoint(jointId: JointId): BoneRig {
       break;
     case 'ankle':
       buildAnkleJoint(fixedGroup, movingGroup, landmarksGroup);
+      break;
+    case 'spine':
+      buildSpineJoint(fixedGroup, movingGroup, landmarksGroup, spinePathology);
       break;
   }
 
@@ -490,6 +496,344 @@ function buildAnkleJoint(fixed: THREE.Group, moving: THREE.Group, landmarks: THR
   addLandmark(landmarks, 'Medial Malleolus', [-0.036, 0.0, 0.0]);
   addLandmark(landmarks, 'Calcaneal Tuberosity', [0.0, -0.045, -0.09]);
   addLandmark(landmarks, '5th Metatarsal Base', [0.038, -0.045, 0.08]);
+}
+
+// -------------------------------------------------------------
+// 6. LUMBAR SPINE: Sacrum / Lower Segment (Fixed) & L4/L5 Segment (Moving)
+// Includes Multi-Part Pathological Visualizations (PIVD, Spondylolisthesis, Stenosis, DDD, Scoliosis)
+// -------------------------------------------------------------
+function buildSpineJoint(
+  fixed: THREE.Group,
+  moving: THREE.Group,
+  landmarks: THREE.Group,
+  pathology: SpinePathologyType
+) {
+  // Specialized spine materials
+  const discAnnulusMat = new THREE.MeshStandardMaterial({
+    color: pathology === 'degenerative_disc' ? 0x5a6864 : 0x7fa9a3,
+    roughness: 0.6,
+    metalness: 0.05,
+  });
+
+  const discNucleusMat = new THREE.MeshStandardMaterial({
+    color: 0x38bdf8,
+    roughness: 0.2,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 0.85,
+  });
+
+  const nerveMat = new THREE.MeshStandardMaterial({
+    color: 0xfacc15, // Golden yellow
+    roughness: 0.35,
+    metalness: 0.1,
+    emissive: 0x854d0e,
+    emissiveIntensity: 0.35,
+  });
+
+  const inflamedNerveMat = new THREE.MeshStandardMaterial({
+    color: 0xef4444, // Inflamed red
+    roughness: 0.3,
+    metalness: 0.2,
+    emissive: 0xb91c1c,
+    emissiveIntensity: 0.75,
+  });
+
+  const ligamentFlavumMat = new THREE.MeshStandardMaterial({
+    color: 0xeab308, // Elastin yellow
+    roughness: 0.65,
+    metalness: 0.05,
+    transparent: true,
+    opacity: 0.85,
+  });
+
+  const osteophyteMat = new THREE.MeshStandardMaterial({
+    color: 0xa8a29e, // Calcified bone spur
+    roughness: 0.8,
+    metalness: 0.1,
+  });
+
+  // Helper to build a lumbar vertebra compound group
+  const createVertebraBody = (isFixed: boolean) => {
+    const vGroup = new THREE.Group();
+    const mat = isFixed ? fixedBoneMat : movingBoneMat;
+
+    // Vertebral Body (oval kidney shape)
+    const bodyGeo = new THREE.CylinderGeometry(0.042, 0.045, 0.034, 24);
+    bodyGeo.scale(1.25, 1, 0.9); // Oval transverse aspect
+    const bodyMesh = new THREE.Mesh(bodyGeo, mat);
+    vGroup.add(bodyMesh);
+
+    // Superior & Inferior Endplate Rims
+    const endplateGeo = new THREE.TorusGeometry(0.046, 0.004, 12, 24);
+    endplateGeo.scale(1.2, 0.9, 1);
+    endplateGeo.rotateX(Math.PI / 2);
+    const supEndplate = new THREE.Mesh(endplateGeo, cartilageMat);
+    supEndplate.position.y = 0.017;
+    vGroup.add(supEndplate);
+
+    const infEndplate = new THREE.Mesh(endplateGeo, cartilageMat);
+    infEndplate.position.y = -0.017;
+    vGroup.add(infEndplate);
+
+    // Bilateral Pedicles
+    const pedicleGeo = new THREE.CylinderGeometry(0.007, 0.008, 0.024, 14);
+    pedicleGeo.rotateX(Math.PI / 2);
+
+    const rightPedicle = new THREE.Mesh(pedicleGeo, mat);
+    rightPedicle.position.set(0.024, 0.006, -0.026);
+    vGroup.add(rightPedicle);
+
+    const leftPedicle = new THREE.Mesh(pedicleGeo, mat);
+    leftPedicle.position.set(-0.024, 0.006, -0.026);
+    vGroup.add(leftPedicle);
+
+    // Bilateral Transverse Processes (projecting horizontally and slightly posterior)
+    const tpGeo = new THREE.ConeGeometry(0.008, 0.036, 12);
+    tpGeo.rotateZ(-Math.PI / 2);
+
+    const rightTP = new THREE.Mesh(tpGeo, mat);
+    rightTP.position.set(0.048, 0.004, -0.028);
+    rightTP.rotation.y = 0.25;
+    vGroup.add(rightTP);
+
+    const leftTP = new THREE.Mesh(tpGeo, mat);
+    leftTP.position.set(-0.048, 0.004, -0.028);
+    leftTP.rotation.z = Math.PI / 2;
+    leftTP.rotation.y = -0.25;
+    vGroup.add(leftTP);
+
+    // Bilateral Laminae converging posteriorly to form spinous process
+    const laminaGeo = new THREE.BoxGeometry(0.022, 0.016, 0.006);
+    laminaGeo.rotateY(0.45);
+    const rightLamina = new THREE.Mesh(laminaGeo, mat);
+    rightLamina.position.set(0.015, 0.004, -0.042);
+    vGroup.add(rightLamina);
+
+    const leftLamina = new THREE.Mesh(laminaGeo, mat);
+    leftLamina.rotation.y = -0.9;
+    leftLamina.position.set(-0.015, 0.004, -0.042);
+    vGroup.add(leftLamina);
+
+    // Spinous Process (prominent hatchet-shaped lumbar spinous process extending directly posterior)
+    const spGeo = new THREE.BoxGeometry(0.009, 0.026, 0.042);
+    const spMesh = new THREE.Mesh(spGeo, mat);
+    spMesh.position.set(0.0, 0.002, -0.062);
+    vGroup.add(spMesh);
+
+    // Superior Articular Processes & Facets (facing medially and posteriorly)
+    const sapGeo = new THREE.CylinderGeometry(0.006, 0.007, 0.016, 12);
+    const rightSAP = new THREE.Mesh(sapGeo, cartilageMat);
+    rightSAP.position.set(0.020, 0.020, -0.032);
+    vGroup.add(rightSAP);
+
+    const leftSAP = new THREE.Mesh(sapGeo, cartilageMat);
+    leftSAP.position.set(-0.020, 0.020, -0.032);
+    vGroup.add(leftSAP);
+
+    // Inferior Articular Processes & Facets (facing laterally and anteriorly)
+    const rightIAP = new THREE.Mesh(sapGeo, cartilageMat);
+    rightIAP.position.set(0.016, -0.018, -0.034);
+    vGroup.add(rightIAP);
+
+    const leftIAP = new THREE.Mesh(sapGeo, cartilageMat);
+    leftIAP.position.set(-0.016, -0.018, -0.034);
+    vGroup.add(leftIAP);
+
+    return vGroup;
+  };
+
+  // 1. FIXED SEGMENT: Inferior Vertebra / Sacral Base (L5/S1)
+  const inferiorVertebra = createVertebraBody(true);
+  inferiorVertebra.position.set(0, -0.035, 0);
+  fixed.add(inferiorVertebra);
+
+  // Sacrum base (pyramidal triangular base attached below inferior vertebra)
+  const sacrumGeo = new THREE.ConeGeometry(0.06, 0.09, 4);
+  sacrumGeo.rotateY(Math.PI / 4);
+  sacrumGeo.scale(1.4, 1, 0.8);
+  const sacrumMesh = new THREE.Mesh(sacrumGeo, fixedBoneMat);
+  sacrumMesh.position.set(0, -0.095, -0.01);
+  fixed.add(sacrumMesh);
+
+  // 2. INTERVERTEBRAL DISC (L4-L5)
+  const discHeight = pathology === 'degenerative_disc' ? 0.007 : 0.016;
+  const annulusGeo = new THREE.CylinderGeometry(0.043, 0.043, discHeight, 24);
+  annulusGeo.scale(1.22, 1, 0.88);
+  const annulusMesh = new THREE.Mesh(annulusGeo, discAnnulusMat);
+  annulusMesh.position.set(0, 0.0, 0);
+  fixed.add(annulusMesh);
+
+  // Nucleus Pulposus (central gelatinous core)
+  const nucleusGeo = new THREE.CylinderGeometry(0.022, 0.022, discHeight * 0.9, 18);
+  nucleusGeo.scale(1.1, 1, 0.85);
+  const nucleusMesh = new THREE.Mesh(nucleusGeo, discNucleusMat);
+  nucleusMesh.position.set(0, 0.0, -0.004);
+  fixed.add(nucleusMesh);
+
+  // 3. SPINAL CANAL, CAUDA EQUINA & DURAL SAC
+  if (pathology === 'spinal_stenosis') {
+    // Constriction hourglass geometry in canal stenosis
+    const duralTopMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.011, 0.005, 0.08, 16),
+      nerveMat
+    );
+    duralTopMesh.position.set(0, 0.04, -0.022);
+    fixed.add(duralTopMesh);
+
+    const duralMidMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.005, 0.011, 0.08, 16),
+      inflamedNerveMat
+    );
+    duralMidMesh.position.set(0, -0.04, -0.022);
+    fixed.add(duralMidMesh);
+  } else {
+    const duralGeo = new THREE.CylinderGeometry(0.011, 0.011, 0.16, 20);
+    const duralMesh = new THREE.Mesh(duralGeo, nerveMat);
+    duralMesh.position.set(0, 0.0, -0.022);
+    fixed.add(duralMesh);
+  }
+
+  // Exiting and Traversing Nerve Roots (L4 exiting, L5 traversing)
+  // Left Nerve Root
+  const nerveCurveLeft = new THREE.CubicBezierCurve3(
+    new THREE.Vector3(-0.008, 0.02, -0.022),
+    new THREE.Vector3(-0.022, 0.005, -0.022),
+    new THREE.Vector3(-0.038, -0.01, -0.016),
+    new THREE.Vector3(-0.055, -0.03, -0.01)
+  );
+  const nerveGeoLeft = new THREE.TubeGeometry(nerveCurveLeft, 16, 0.0035, 8, false);
+  const nerveMeshLeft = new THREE.Mesh(nerveGeoLeft, nerveMat);
+  fixed.add(nerveMeshLeft);
+
+  // Right Nerve Root (The site of potential posterolateral disc herniation compression)
+  let rightNerveMat = nerveMat;
+  let nerveCurveRight: THREE.CubicBezierCurve3;
+
+  if (pathology === 'pivd_herniation') {
+    // Nerve root is displaced and compressed by protruding herniation
+    rightNerveMat = inflamedNerveMat;
+    nerveCurveRight = new THREE.CubicBezierCurve3(
+      new THREE.Vector3(0.008, 0.02, -0.022),
+      new THREE.Vector3(0.025, 0.01, -0.029), // Deflected posteriorly around protrusion
+      new THREE.Vector3(0.042, -0.008, -0.022),
+      new THREE.Vector3(0.055, -0.03, -0.01)
+    );
+  } else {
+    nerveCurveRight = new THREE.CubicBezierCurve3(
+      new THREE.Vector3(0.008, 0.02, -0.022),
+      new THREE.Vector3(0.022, 0.005, -0.022),
+      new THREE.Vector3(0.038, -0.01, -0.016),
+      new THREE.Vector3(0.055, -0.03, -0.01)
+    );
+  }
+
+  const nerveGeoRight = new THREE.TubeGeometry(nerveCurveRight, 16, 0.0035, 8, false);
+  const nerveMeshRight = new THREE.Mesh(nerveGeoRight, rightNerveMat);
+  fixed.add(nerveMeshRight);
+
+  // 4. PATHOLOGY-SPECIFIC ANATOMICAL MODIFICATIONS
+  if (pathology === 'pivd_herniation') {
+    // Posterolateral Disc Herniation Protrusion / Extrusion
+    // Prominent focal nuclear mass herniating posterolaterally on right side into lateral recess
+    const herniaGeo = new THREE.SphereGeometry(0.009, 16, 16);
+    herniaGeo.scale(1.2, 0.9, 1.4);
+    const herniaMesh = new THREE.Mesh(herniaGeo, inflamedNerveMat);
+    herniaMesh.position.set(0.022, 0.002, -0.025);
+    fixed.add(herniaMesh);
+
+    // Annular tear fissure highlight
+    const tearGeo = new THREE.BoxGeometry(0.006, 0.012, 0.008);
+    const tearMesh = new THREE.Mesh(tearGeo, new THREE.MeshBasicMaterial({ color: 0x991b1b }));
+    tearMesh.position.set(0.018, 0.0, -0.022);
+    fixed.add(tearMesh);
+  }
+
+  if (pathology === 'spinal_stenosis') {
+    // Hypertrophied Ligamentum Flavum (thickened yellow ligament encroaching posterior canal)
+    const flavumGeo = new THREE.BoxGeometry(0.028, 0.035, 0.012);
+    const flavumMesh = new THREE.Mesh(flavumGeo, ligamentFlavumMat);
+    flavumMesh.position.set(0.0, 0.0, -0.030);
+    fixed.add(flavumMesh);
+
+    // Arthritic facet hypertrophy osteophytes encroaching lateral recess
+    const facetSpurGeo = new THREE.SphereGeometry(0.008, 12, 12);
+    const rFacetSpur = new THREE.Mesh(facetSpurGeo, osteophyteMat);
+    rFacetSpur.position.set(0.018, 0.005, -0.028);
+    fixed.add(rFacetSpur);
+
+    const lFacetSpur = new THREE.Mesh(facetSpurGeo, osteophyteMat);
+    lFacetSpur.position.set(-0.018, 0.005, -0.028);
+    fixed.add(lFacetSpur);
+  }
+
+  if (pathology === 'degenerative_disc') {
+    // Anterior and lateral marginal osteophytes ("claw spurs") on vertebral margins
+    const spurGeo = new THREE.ConeGeometry(0.007, 0.014, 8);
+    spurGeo.rotateX(Math.PI / 2);
+
+    const antSpurSup = new THREE.Mesh(spurGeo, osteophyteMat);
+    antSpurSup.position.set(0.0, 0.014, 0.046);
+    fixed.add(antSpurSup);
+
+    const antSpurInf = new THREE.Mesh(spurGeo, osteophyteMat);
+    antSpurInf.rotation.z = Math.PI;
+    antSpurInf.position.set(0.0, -0.014, 0.046);
+    fixed.add(antSpurInf);
+
+    const rSpur = new THREE.Mesh(spurGeo, osteophyteMat);
+    rSpur.rotation.y = Math.PI / 4;
+    rSpur.position.set(0.044, 0.010, 0.028);
+    fixed.add(rSpur);
+  }
+
+  // 5. MOVING SEGMENT: Superior Vertebra (L4)
+  const superiorVertebra = createVertebraBody(false);
+  superiorVertebra.position.set(0, 0.035, 0);
+
+  if (pathology === 'spondylolisthesis') {
+    // Spondylolisthesis: Anterior slip (shear displacement) of superior vertebra over S1
+    superiorVertebra.position.z += 0.018; // Anterior translation (Meyerding Grade II ~35%)
+
+    // Pars Interarticularis fracture defect visualization (red fracture line)
+    const parsDefectGeo = new THREE.BoxGeometry(0.004, 0.012, 0.006);
+    const parsMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+    const rPars = new THREE.Mesh(parsDefectGeo, parsMat);
+    rPars.position.set(0.022, 0.026, -0.030);
+    fixed.add(rPars);
+
+    const lPars = new THREE.Mesh(parsDefectGeo, parsMat);
+    lPars.position.set(-0.022, 0.026, -0.030);
+    fixed.add(lPars);
+  }
+
+  if (pathology === 'scoliosis') {
+    // Scoliosis: Asymmetric coronal tilt and coupled rotation
+    superiorVertebra.rotation.z = -0.18; // ~10° coronal tilt
+    superiorVertebra.rotation.y = 0.08;  // coupled axial rotation
+  }
+
+  moving.add(superiorVertebra);
+
+  // Upper lumbar vertebra segment (L3) stacked on top
+  const l3Vertebra = createVertebraBody(false);
+  l3Vertebra.position.set(0, 0.090, 0);
+  if (pathology === 'scoliosis') {
+    l3Vertebra.rotation.z = -0.25;
+    l3Vertebra.rotation.y = 0.12;
+  }
+  moving.add(l3Vertebra);
+
+  // Upper disc (L3-L4)
+  const l3Disc = new THREE.Mesh(annulusGeo, discAnnulusMat);
+  l3Disc.position.set(0, 0.062, 0);
+  moving.add(l3Disc);
+
+  // Anatomical Landmarks
+  addLandmark(landmarks, 'L4 Spinous Process', [0, 0.035, -0.065]);
+  addLandmark(landmarks, 'L5-S1 Articular Interspace', [0, -0.035, -0.065]);
+  addLandmark(landmarks, 'Right L5 Traversing Nerve Root', [0.032, -0.005, -0.022]);
+  addLandmark(landmarks, 'L4-L5 Intervertebral Disc Center', [0, 0.0, 0.0]);
 }
 
 function addLandmark(group: THREE.Group, name: string, pos: [number, number, number]) {

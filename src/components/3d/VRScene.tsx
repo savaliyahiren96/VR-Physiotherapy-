@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { JointDefinition, MovementDefinition, MuscleCalculatedState } from '../../types/biomechanics';
+import { JointDefinition, MovementDefinition, MuscleCalculatedState, SpinePathologyType } from '../../types/biomechanics';
 import { createProceduralJoint, BoneRig } from './ProceduralBones';
 
 interface VRSceneProps {
@@ -18,6 +18,7 @@ interface VRSceneProps {
   showLandmarks: boolean;
   activeAccessoryGlideVector: [number, number, number] | null;
   netTorqueNm: number;
+  spinePathology?: SpinePathologyType;
 }
 
 export const VRScene: React.FC<VRSceneProps> = ({
@@ -33,6 +34,7 @@ export const VRScene: React.FC<VRSceneProps> = ({
   showLandmarks,
   activeAccessoryGlideVector,
   netTorqueNm,
+  spinePathology = 'healthy',
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const [vrSupported, setVrSupported] = useState<boolean>(false);
@@ -374,7 +376,7 @@ export const VRScene: React.FC<VRSceneProps> = ({
       rigRef.current.dispose();
     }
 
-    const newRig = createProceduralJoint(joint.id);
+    const newRig = createProceduralJoint(joint.id, spinePathology);
     rigRef.current = newRig;
 
     scene.add(newRig.fixedGroup);
@@ -388,8 +390,9 @@ export const VRScene: React.FC<VRSceneProps> = ({
       else if (joint.id === 'hip') controlsRef.current.target.set(0.08, 0.05, 0.0);
       else if (joint.id === 'knee') controlsRef.current.target.set(0.03, -0.05, 0.0);
       else if (joint.id === 'ankle') controlsRef.current.target.set(0.0, -0.05, 0.0);
+      else if (joint.id === 'spine') controlsRef.current.target.set(0.0, 0.01, 0.0);
     }
-  }, [joint.id]);
+  }, [joint.id, spinePathology]);
 
   // Update Joint Angle, Scapular Rhythm & Accessory Glides
   useEffect(() => {
@@ -492,6 +495,23 @@ export const VRScene: React.FC<VRSceneProps> = ({
         movingGroup.rotation.z = rad * 0.85;
         movingGroup.rotation.y = rad * 0.45;
         movingGroup.rotation.x = -rad * 0.25;
+      }
+    }
+
+    // 6. Lumbar Spine & Motion Segment (L4-S1)
+    else if (joint.id === 'spine') {
+      if (movement.id === 'spine_flexion') {
+        // Forward flexion: anterior sagittal tilt
+        movingGroup.rotation.x = -rad;
+      } else if (movement.id === 'spine_extension') {
+        // Extension: posterior sagittal tilt
+        movingGroup.rotation.x = rad;
+      } else if (movement.id === 'spine_lateral_flexion') {
+        // Lateral flexion: coronal tilt
+        movingGroup.rotation.z = -rad;
+      } else if (movement.id === 'spine_axial_rotation') {
+        // Axial rotation: transverse twist
+        movingGroup.rotation.y = rad;
       }
     }
 
