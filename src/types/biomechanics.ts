@@ -180,3 +180,47 @@ export interface SpinePathologyInfo {
   nerveRootInvolved: string;
   directionPreference: 'Extension' | 'Flexion' | 'Neutral/Lateral Shift' | 'Unloaded';
 }
+
+export type SoftTissueType =
+  | 'ligament'
+  | 'joint_capsule'
+  | 'fibrocartilage_labrum'
+  | 'meniscus'
+  | 'bursa'
+  | 'retinaculum'
+  | 'nerve_tract';
+
+export type SoftTissueMechanicalState =
+  | 'Slack / Relaxed'
+  | 'Low Tension'
+  | 'Moderately Taut'
+  | 'Maximally Taut / Restraining'
+  | 'Impinged / Compressed'
+  | 'Vulnerable / Micro-Failure Risk';
+
+export interface SoftTissueDefinition {
+  id: string;
+  name: string;
+  jointId: JointId;
+  type: SoftTissueType;
+  anatomicalAttachment: string;
+  functionalRole: string;
+  peakTensionAngleDeg: number;
+  slackAngleDeg: number;
+  maxPhysiologicalStrainPercent: number;
+  clinicalTests: string[];
+  injuryMechanism: string;
+  originCoords: [number, number, number];
+  insertionCoords: [number, number, number];
+  thicknessM?: number;
+}
+
+export interface SoftTissueCalculatedState {
+  tissue: SoftTissueDefinition;
+  strainPercent: number;
+  state: SoftTissueMechanicalState;
+  colorHex: string;
+  tensionDescription: string;
+  isClinicallyVulnerable: boolean;
+  biomechanicalRestraintShare: number;
+}

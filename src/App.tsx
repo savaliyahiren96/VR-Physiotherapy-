@@ -22,12 +22,14 @@ import { MotionAnalysisTab } from './components/tabs/MotionAnalysisTab';
 import { ExerciseLibraryTab } from './components/tabs/ExerciseLibraryTab';
 import { ComparisonTab } from './components/tabs/ComparisonTab';
 import { SpinePathologyTab } from './components/tabs/SpinePathologyTab';
+import { SoftTissueTab } from './components/tabs/SoftTissueTab';
 import { SAMPLE_PATIENTS } from './data/samplePatients';
 import { playTargetReachedChime } from './utils/audioFeedback';
 
 type TabKey =
   | 'load'
   | 'muscles'
+  | 'soft_tissues'
   | 'joint'
   | 'accessory'
   | 'weakness'
@@ -57,6 +59,7 @@ export default function App() {
   const [angleDeg, setAngleDeg] = useState<number>(90);
   const [isPlayingRange, setIsPlayingRange] = useState<boolean>(false);
   const [selectedMuscleId, setSelectedMuscleId] = useState<string | null>(null);
+  const [selectedSoftTissueId, setSelectedSoftTissueId] = useState<string | null>(null);
   const [showLandmarks, setShowLandmarks] = useState<boolean>(false);
   const [activeAccessoryGlideVector, setActiveAccessoryGlideVector] = useState<[number, number, number] | null>(null);
   const [activeGlideId, setActiveGlideId] = useState<string | null>(null);
@@ -96,6 +99,7 @@ export default function App() {
       setAngleDeg(m.defaultAngle);
       setPatientPosition(m.defaultPosition);
       setSelectedMuscleId(null);
+      setSelectedSoftTissueId(null);
       setActiveAccessoryGlideVector(null);
       setActiveGlideId(null);
     }
@@ -110,6 +114,7 @@ export default function App() {
       setAngleDeg(firstMov.defaultAngle);
       setPatientPosition(firstMov.defaultPosition);
       setSelectedMuscleId(null);
+      setSelectedSoftTissueId(null);
       setActiveAccessoryGlideVector(null);
       setActiveGlideId(null);
       if (jId === 'spine') {
@@ -305,10 +310,14 @@ export default function App() {
               muscleCalculations={biomechanics.muscleCalculations}
               selectedMuscleId={selectedMuscleId}
               onSelectMuscle={setSelectedMuscleId}
+              selectedSoftTissueId={selectedSoftTissueId}
+              onSelectSoftTissue={setSelectedSoftTissueId}
               showLandmarks={showLandmarks}
               activeAccessoryGlideVector={activeAccessoryGlideVector}
               netTorqueNm={biomechanics.netTorqueNm}
               spinePathology={spinePathology}
+              jointReactionForceN={biomechanics.jointReactionForceN}
+              primaryMuscleForceN={biomechanics.primaryMuscleForceN}
             />
           </div>
 
@@ -346,6 +355,14 @@ export default function App() {
                 <span className="text-slate-400 text-[11px] ml-1">({currentMovement.normalRangeText})</span>
               </span>
               <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('soft_tissues')}
+                  className="text-[11px] px-2 py-1 rounded font-bold border transition-colors cursor-pointer flex items-center gap-1 bg-[#042f2e] text-[#2dd4bf] border-[#0d9488] hover:bg-[#115e59]"
+                  title="Open Ligament & Soft Tissue Strain Lab"
+                >
+                  <span>🧬 Soft Tissues</span>
+                </button>
                 <button
                   type="button"
                   title="Toggle Acoustic Biofeedback Chime on reaching target ROM"
@@ -400,6 +417,7 @@ export default function App() {
               { key: 'motion_analysis', label: '📷 Video & Marker Lab' },
               { key: 'load', label: 'Load & Torque' },
               { key: 'muscles', label: 'Muscles & Sharing' },
+              { key: 'soft_tissues', label: '🧬 Ligaments & Soft Tissues' },
               { key: 'joint', label: 'Joint Info' },
               { key: 'accessory', label: 'Accessory Glides' },
               { key: 'weakness', label: 'Palsy Simulator' },
@@ -463,6 +481,16 @@ export default function App() {
                 contractionMode={contractionMode}
                 patientPosition={patientPosition}
                 muscleStrengthFactors={muscleStrengthFactors}
+              />
+            )}
+
+            {activeTab === 'soft_tissues' && (
+              <SoftTissueTab
+                joint={currentJoint}
+                movement={currentMovement}
+                angleDeg={angleDeg}
+                onSelectSoftTissue={setSelectedSoftTissueId}
+                selectedSoftTissueId={selectedSoftTissueId}
               />
             )}
 
